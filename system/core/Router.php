@@ -4,64 +4,65 @@ namespace Core;
 
 class Router {
 
-    /**
-	 *
+
+	/**
+	 * @var array The route patterns and their handling functions
 	 */
 	private $routes = array();
-	
+
+
 	/**
-	 *
+	 * @var array The before middleware route patterns and their handling functions
 	 */
-	private $method = '';
-	
+	private $befores = array();
+
+
 	/**
-	 *
+	 * @var object The function to be executed when no route has been matched
 	 */
-	private $notFound = '';
-	
+	private $notFound;
+
+
 	/**
 	 * @var string Current baseroute, used for (sub)route mounting
 	 */
 	private $baseroute = '';
-    
-	
-	
-	public function getRequestMethods(){}
-	
-	/**
-	 * 执行callback回调函数
-	 */
-	public function run($callback = null) {
-    
-    	// Handle all routes
-		$numHandled = 0;
-		
-		$this->method = 'GET';
-		//$this->routes['get'][] = array('pattern'=>'/(\w+)(\d+)');
 
-		if (isset($this->routes[$this->method])) {
-		    // handle返回是否有需要处理的请求
-			$numHandled = $this->handle($this->routes[$this->method], true);
+
+	/**
+	 * @var string The Request Method that needs to be handled
+	 */
+	private $method = '';
+
+
+	/**
+	 * Store a before middleware route and a handling function to be executed when accessed using one of the specified methods
+	 *
+	 * @param string $methods Allowed methods, | delimited
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function before($methods, $pattern, $fn) {
+
+		$pattern = $this->baseroute . '/' . trim($pattern, '/');
+		$pattern = $this->baseroute ? rtrim($pattern, '/') : $pattern;
+
+		foreach (explode('|', $methods) as $method) {
+			$this->befores[$method][] = array(
+				'pattern' => $pattern,
+				'fn' => $fn
+			);
 		}
-		
-		// 判断是否有请求要处理
-		if ($numHandled == 0) {
-			if ($this->notFound && is_callable($this->notFound)) {
-				call_user_func($this->notFound);
-			} else {
-				header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
-			}
-		}
-		// If a route was handled, perform the finish callback (if any)
-		else {
-			if ($callback) $callback();
-		}
+
 	}
-	
-	public function get($pattern, $fn) {
-		$this->match('GET', $pattern, $fn);
-	}
-	
+
+	/**
+	 * Store a route and a handling function to be executed when accessed using one of the specified methods
+	 *
+	 * @param string $methods Allowed methods, | delimited
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
 	public function match($methods, $pattern, $fn) {
 
 		$pattern = $this->baseroute . '/' . trim($pattern, '/');
@@ -75,7 +76,118 @@ class Router {
 		}
 
 	}
-	
+
+
+	/**
+	 * Shorthand for a route accessed using GET
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function get($pattern, $fn) {
+		$this->match('GET', $pattern, $fn);
+	}
+
+
+	/**
+	 * Shorthand for a route accessed using POST
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function post($pattern, $fn) {
+		$this->match('POST', $pattern, $fn);
+	}
+
+
+	/**
+	 * Shorthand for a route accessed using PATCH
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function patch($pattern, $fn) {
+		$this->match('PATCH', $pattern, $fn);
+	}
+
+
+	/**
+	 * Shorthand for a route accessed using DELETE
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function delete($pattern, $fn) {
+		$this->match('DELETE', $pattern, $fn);
+	}
+
+
+	/**
+	 * Shorthand for a route accessed using PUT
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function put($pattern, $fn) {
+		$this->match('PUT', $pattern, $fn);
+	}
+
+
+	/**
+	 * Shorthand for a route accessed using OPTIONS
+	 *
+	 * @param string $pattern A route pattern such as /about/system
+	 * @param object $fn The handling function to be executed
+	 */
+	public function options($pattern, $fn) {
+		$this->match('OPTIONS', $pattern, $fn);
+	}
+
+
+	/**
+	 * Mounts a collection of callables onto a base route
+	 *
+	 * @param string $baseroute The route subpattern to mount the callables on
+	 * @param callable $fn The callabled to be called
+	 */
+	public function mount($baseroute, $fn) {
+
+		// Track current baseroute
+		$curBaseroute = $this->baseroute;
+
+		// Build new baseroute string
+		$this->baseroute .= $baseroute;
+
+		// Call the callable
+		call_user_func($fn);
+
+		// Restore original baseroute
+		$this->baseroute = $curBaseroute;
+
+	}
+
+
+	/**
+	 * Get all request headers
+	 * @return array The request headers
+	 */
+	public function getRequestHeaders() {
+
+		// getallheaders available, use that
+		if (function_exists('getallheaders')) return getallheaders();
+
+		// getallheaders not available: manually extract 'm
+		$headers = array();
+		foreach ($_SERVER as $name => $value) {
+			if ((substr($name, 0, 5) == 'HTTP_') || ($name == 'CONTENT_TYPE') || ($name == 'CONTENT_LENGTH')) {
+				$headers[str_replace(array(' ', 'Http'), array('-', 'HTTP'), ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+			}
+		}
+		return $headers;
+
+	}
+
+
 	/**
 	 * Get the request method used, taking overrides into account
 	 * @return string The Request method to handle
@@ -103,26 +215,88 @@ class Router {
 		return $method;
 
 	}
-	
+
+
 	/**
+	 * Execute the router: Loop all defined before middlewares and routes, and execute the handling function if a mactch was found
+	 * 
+	 * 执行callback回调函数
+	 *
+	 * @param object $callback Function to be executed after a matching route was handled (= after router middleware)
+	 */
+	public function run($callback = null) {
+
+		// Define which method we need to handle
+		$this->method = $this->getRequestMethod();
+
+		// Handle all before middlewares
+		if (isset($this->befores[$this->method])) {
+			$this->handle($this->befores[$this->method]);
+		}
+
+		// Handle all routes
+		$numHandled = 0;
+		if (isset($this->routes[$this->method])) {
+			// handle返回是否有需要处理的请求
+			$numHandled = $this->handle($this->routes[$this->method], true);
+		}
+
+		// If no route was handled, trigger the 404 (if any)
+		// 判断是否有请求要处理
+		if ($numHandled == 0) {
+			if ($this->notFound && is_callable($this->notFound)) call_user_func($this->notFound);
+			else header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
+		}
+		// If a route was handled, perform the finish callback (if any)
+		else {
+			if ($callback) $callback();
+		}
+
+		// If it originally was a HEAD request, clean up after ourselves by emptying the output buffer
+		if ($_SERVER['REQUEST_METHOD'] == 'HEAD') ob_end_clean();
+
+	}
+
+
+	/**
+	 * Set the 404 handling function
+	 * @param object $fn The function to be executed
+	 */
+	public function set404($fn) {
+		$this->notFound = $fn;
+	}
+
+
+	/**
+	 * Handle a a set of routes: if a match is found, execute the relating handling function
+	 * @param array $routes Collection of route patterns and their handling functions
+	 * @param boolean $quitAfterRun Does the handle function need to quit after one route was matched?
+	 * @return int The number of routes handled
+	 */
+	 /**
 	 * 根据当前uri从所有已经定义好的路由中匹配
 	 × 匹配后执行相关动作
 	 */
-	public function handle($routes, $quitAfterRun = false) {
+	private function handle($routes, $quitAfterRun = false) {
+
 		// Counter to keep track of the number of routes we've handled
 		$numHandled = 0;
-	    
+
 		// The current page URL
 		$uri = $this->getCurrentUri();
-//echo $uri;		
+
+		// Variables in the URL
+		$urlvars = array();
+
 		// Loop all routes
 		foreach ($routes as $route) {
-		    // we have a match!
-			if (preg_match_all("#^" . $route['pattern'] . "$#", $uri, $matches, PREG_OFFSET_CAPTURE/*PREG_SET_ORDER*/)) {
 
-			    // Rework matches to only contain the matches, not the orig string
+			// we have a match!
+			if (preg_match_all('#^' . $route['pattern'] . '$#', $uri, $matches, PREG_OFFSET_CAPTURE)) {
+
+				// Rework matches to only contain the matches, not the orig string
 				$matches = array_slice($matches, 1);
-                
+
 				// Extract the matched URL parameters (and only the parameters)
 				$params = array_map(function($match, $index) use ($matches) {
 
@@ -136,22 +310,27 @@ class Router {
 						return (isset($match[0][0]) ? trim($match[0][0], '/') : null);
 					}
 
-				}, $matches, array_keys($matches));		
-				
-			}
-	
-			call_user_func_array($route['fn'], $params);
-			
-			// yay!
-			$numHandled++;
+				}, $matches, array_keys($matches));
 
-			if ($quitAfterRun) break;
+				// call the handling function with the URL parameters
+				call_user_func_array($route['fn'], $params);
+
+				// yay!
+				$numHandled++;
+
+				// If we need to quit, then quit
+				if ($quitAfterRun) break;
+
+			}
+
 		}
-		
+
+		// Return the number of routes handled
 		return $numHandled;
-		
+
 	}
-	
+
+
 	/**
 	 * Define the current relative URI
 	 * @return string
@@ -174,4 +353,4 @@ class Router {
 
 }
 
-?>
+// EOF

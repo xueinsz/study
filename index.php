@@ -2,7 +2,6 @@
 
 require('/config.php');
 
-
 // 实现自动加载框架核心函数和库
 /*function system_loader($class) {
     if(is_file(SYS_CORE . $class . '.php')) {
@@ -22,16 +21,24 @@ $router = new Router();
 
 $controller = Router::display($_SERVER['QUERY_STRING']);
 */
+require(SYS_CORE . 'PluginManager.php');
+$plugin = new PluginManager();
 
-require_once(SYS_CORE . 'Router.php');
+
+require(SYS_CORE . 'Router.php');
 $router = new \Core\Router();
 
-require_once(SYS_CORE . 'Action.php');
+require(SYS_CORE . 'Action.php');
 $action = new \Core\Action();
 
-$router->get('/www',function(){
+$router->get('/(\w+)(/\w+)?',function($controller,$method) use ($action) {
+    $action->display($controller,$method);
 });
 
-$router->run(function() use ($action){
-    $action->display('www');
+$router->post('/(\w+)(/\w+)?',function($controller,$method) use ($action) {
+    $action->display($controller,$method);
+});
+
+$router->run(function() {
+    
 });

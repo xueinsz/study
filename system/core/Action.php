@@ -1,13 +1,22 @@
 <?php
 namespace Core;
 class Action {
-    public function display($uri) {
+
+    private $controller = '';
+	private $method = '';
+	private $params = array();
 	
-		$file = APPLICATION_CONTROLLER . $uri . '.php';
+    public function display($controller,$method = '') {
+	
+		$file = APPLICATION_CONTROLLER . $controller . '.php';
 		require_once($file);
-		$class = ucwords($uri);
+		$class = ucwords($controller);
+		
 		$controller = new $class;
-		$method = !empty($matches[3]) ? $matches[3] : 'index';
+		
+		$method = $method ? $method : 'index';
+		
+		
 		
 		call_user_func_array(array($controller,$method),array());
 	}
